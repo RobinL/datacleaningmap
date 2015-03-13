@@ -6,7 +6,7 @@
 var FSA_APP = {}
 
 
-
+L.Icon.Default.imagePath = "images/"
 //Make sure we're looking in the right place for icons
 
 
@@ -19,6 +19,10 @@ $(function() {
 
     $(".checkbox").change(function() {
         showHideLayers(this)
+    })
+
+    $("#csvselect").change(function() {
+        addLayers()
     })
 
     //promise1 = $.get('topo_json/topo_lad.json', addGeoJson, 'json');
@@ -58,19 +62,21 @@ function setCSSSize() {
 
 
 
-
-
-
-
 function addLayers(lat, lng) {
 
+    _.each(FSA_APP.layers, function(this_layer) {
+        this_layer.remove()
+    })
 
-    d3.csv("data/data/alldata.csv", function(data) {
+    d3.csv("data/data/"+ $("#csvselect").val(), function(data) {
 
-        addToMap(data, "latitude", "longitude", "original")
-        addToMap(data, "DPA_lng", "DPA_lat", "DPA")
-        addToMap(data, "LPI_lng", "LPI_lat", "LPI")
+        addToMap(data, "fhrs_lat", "fhrs_lng", "fhrs")
+        addToMap(data, "matched_lat", "matched_lng", "matched")
 
+        if (_.has(data[0], "matched_address2")) {
+            addToMap(data, "matched_lat2", "matched_lng2", "matched2")
+        } 
+  
         showHideLayers()
 
     });
@@ -89,27 +95,31 @@ function addLayers(lat, lng) {
 
 
             d = data[i]
-            //lat = Math.random() * 0.00002 + Number(d[lat_key])
+            
             lat = d[lat_key]
             lng = d[lng_key]
-            rating = d["ratingvalue"]
-            businessname = d["businessname"]
+
+            // if (layerName == "fhrs") {
+            //     lat = (Math.random()-0.5) * 0.0002 + parseFloat(lat);
+            //     lng = (Math.random()-0.5) * 0.0002 + parseFloat(lng);
+
+            // } 
+         
 
             template_data = {}
-            template_data["businessname"] = d["businessname"]
-            template_data["ratingvalue"] = d["ratingvalue"]
+            template_data["fhrs_address"] = d["fhrs_address"]
+            template_data["matched_address"] = d["matched_address"]
 
-            if (layerName == "original") {
-                template_data["address"] = d["full_address"] 
-                  }
-
-            if (layerName == "DPA") {
-                template_data["address"] = d["DPA_ADDRESS"]
+            if (_.has(d,"matched_address2")) {
+                template_data["matched_address2"] = d["matched_address2"]
+            }
+            else {
+                template_data["matched_address2"] = ""
             }
 
-            if (layerName == "LPI") {
-                template_data["address"] = d["LPI_ADDRESS"]
-            }
+        
+
+            
 
 
 
@@ -122,20 +132,20 @@ function addLayers(lat, lng) {
             };
 
             //Convert to numeric
-            function getFillColour(rating) {
+            function getFillColour() {
 
-                if (layerName == "original") {
-                    $("#Original").parent().css("color","#0693C8")
+                if (layerName == "fhrs") {
+                    $("#fhrs").parent().css("color","#0693C8")
                     return "#0693C8"
                 }
 
-                if (layerName == "DPA") {
-                    $("#DPA").parent().css("color","#58CC02")
+                if (layerName == "matched") {
+                    $("#matched").parent().css("color","#58CC02")
                     return "#58CC02"
                 }
 
-                if (layerName == "LPI") {
-                    $("#LPI").parent().css("color","#CE0005")
+                if (layerName == "matched2") {
+                    $("#matched2").parent().css("color","#CE0005")
                     return "#CE0005"
                 }
 
@@ -146,9 +156,9 @@ function addLayers(lat, lng) {
             style = {
 
                 "weight": 0,
-                "fillColor": getFillColour(rating, layerName),
-                "fillOpacity": 0.6,
-                "radius": 8,
+                "fillColor": getFillColour(layerName),
+                "fillOpacity": 1,
+                "radius": 6,
                 "draggable": 'true'
 
             };
@@ -170,6 +180,7 @@ function addLayers(lat, lng) {
                 })
                 
                 list_overlapping(this)
+                add_line(this)
 
             });
             m.on("mouseout", function() {
@@ -180,12 +191,25 @@ function addLayers(lat, lng) {
                     "fillOpacity": 0.9
                 })
                 this.closePopup();
+                remove_line()
             })
             
 
 
             m.__layerParent = layerName
-            m.__address = template_data["address"] 
+            m.__fhrs_address = d["fhrs_address"] 
+            m.__fhrs_lat = d["fhrs_lat"] 
+            m.__fhrs_lng = d["fhrs_lng"] 
+
+
+            m.__matched_address = d["matched_address"] 
+            m.__matched_lat = d["matched_lat"] 
+            m.__matched_lng = d["matched_lng"] 
+
+            m.__matched_address2 = d["matched_address2"] 
+            m.__matched_lat2 = d["matched_lat2"] 
+            m.__matched_lng2 = d["matched_lng2"] 
+
             markerArray.push(m);
          
         };
@@ -201,10 +225,8 @@ function addLayers(lat, lng) {
 }
 
 function list_overlapping(marker) {
- 
 
-
-    thisLayer = FSA_APP.layers[marker.__layerParent] 
+  thisLayer = FSA_APP.layers[marker.__layerParent] 
     $("#overlapping").html("")
     _.each(thisLayer._layers, function(marker2) {
         
@@ -213,10 +235,56 @@ function list_overlapping(marker) {
 
         if (Math.pow(Math.pow(latDiff,2) + Math.pow(lngDiff,2),0.5)<0.00003) {
         
-        $("#overlapping").html($("#overlapping").html() + "<p>"+  marker2.__address + "</p>")
+        $("#overlapping").html($("#overlapping").html() + "<p>"+  marker2.__fhrs_address + "</p>")
         }
      })
    
+
+
+
+    
+
+   
+}
+
+
+var polyline
+function add_line(marker) {
+
+ 
+
+
+    var line = []
+    var lat = (marker.__matched_lat);
+    var lng = (marker.__matched_lng);
+    var newLatLng = new L.LatLng(lat, lng);
+    line.push(newLatLng)
+
+    var lat = (marker.__fhrs_lat);
+    var lng = (marker.__fhrs_lng);
+    var newLatLng = new L.LatLng(lat, lng);
+    line.push(newLatLng)
+
+    if (_.has(marker, "__matched_lat2")) {
+        var lat = (marker.__matched_lat2);
+        var lng = (marker.__matched_lng2);
+        var newLatLng = new L.LatLng(lat, lng);
+        line.push(newLatLng)
+
+    }
+
+    var polyline_options = {
+        color: '#000'
+      };
+
+    polyline = L.polyline(line, polyline_options).addTo(map);
+    
+   
+}
+
+function remove_line(){
+    map.removeLayer(polyline)
+
 }
 
 
@@ -225,19 +293,21 @@ function showHideLayers(click_object) {
     layersArr = []
 
     layersArr.push({
-        "selector": "#Original",
-        "layer": FSA_APP.layers.original
+        "selector": "#fhrs",
+        "layer": FSA_APP.layers.fhrs
     })
 
     layersArr.push({
-        "selector": "#DPA",
-        "layer": FSA_APP.layers.DPA
+        "selector": "#matched",
+        "layer": FSA_APP.layers.matched
     })
 
     layersArr.push({
-        "selector": "#LPI",
-        "layer": FSA_APP.layers.LPI
+        "selector": "#matched2",
+        "layer": FSA_APP.layers.matched2
     })
+
+
 
 
     for (var i = 0; i < layersArr.length; i++) {

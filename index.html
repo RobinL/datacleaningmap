@@ -37,21 +37,27 @@
 
 
 <div class="controls">
-
-
+<label class="selectbox" for="selectbox-0">
+  <select id="csvselect">
+    <option value="300_peckham.csv">300 Peckham addresses</option>
+    <option value="300_peckham_2.csv">300 Peckham addresses 2</option>
+    <option selected="selected" value="300_peckham_12diff.csv">300 Peckham addresses 12 diff</option>
+   
+  </select>
 
   <label class="checkbox" for="checkboxes-0">
-    <input type="checkbox" name="checkboxes" id="Original" value="Show" checked>
+    <input type="checkbox" name="checkboxes" id="fhrs" value="Show" checked>
     Original
   </label>
   <label class="checkbox" for="checkboxes-1">
-    <input type="checkbox" name="checkboxes" id="LPI" value="Show" >
-    DPA
+    <input type="checkbox" name="checkboxes" id="matched" value="Show" >
+    Matched
   </label>
   <label class="checkbox" for="checkboxes-1">
-    <input type="checkbox" name="checkboxes" id="DPA" value="Show" >
-    LPI
+    <input type="checkbox" name="checkboxes" id="matched2" value="Show" >
+    Matched2
   </label>
+
 </div>
 
 <div id="mapandtweetscontainer">
@@ -68,9 +74,10 @@
 
 
 <script id="popup-template" type="text/x-handlebars-template">
-  <div><strong>   Name: {{businessname}}</strong></div>
-  <div>FHRS rating: {{ratingvalue}}</div>
-  <div>Address: {{address}}</div>
+  
+  <div>FHRS address: {{fhrs_address}}</div>
+  <div>Matched address: {{matched_address}}</div>
+  <div>Matched address2: {{matched_address2}}</div>
 
  
   
